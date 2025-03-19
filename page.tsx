@@ -23,20 +23,20 @@ export default function EmifPage() {
 
   // State management
   const [currentStep, setCurrentStep] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [completedStep, setCompletedStep] = useState(-1); // -1 means no steps completed yet
   const [expandedAccordions, setExpandedAccordions] = useState([steps[0].id]);
 
   // Calculate progress
   const progressPercentage = Math.round(
-    (completedSteps.length / steps.length) * 100,
+    ((completedStep + 1) / steps.length) * 100,
   );
 
   // Handle proceed button click
   const handleProceed = (stepIndex: number) => {
     // If user clicks on an earlier step than current, reset the flow
     if (stepIndex < currentStep) {
-      // Reset completed steps to only include the current step
-      setCompletedSteps([stepIndex]);
+      // Reset completed step to the current step
+      setCompletedStep(stepIndex);
 
       // Move to the next step
       const nextStep = stepIndex + 1;
@@ -44,9 +44,7 @@ export default function EmifPage() {
       setExpandedAccordions([steps[nextStep].id]);
     } else {
       // Normal flow - Mark current step as completed
-      if (!completedSteps.includes(stepIndex)) {
-        setCompletedSteps([...completedSteps, stepIndex]);
-      }
+      setCompletedStep(Math.max(completedStep, stepIndex));
 
       // Move to next step if available
       if (stepIndex < steps.length - 1) {
@@ -58,16 +56,24 @@ export default function EmifPage() {
   };
 
   // Map steps to stepper format
-  const stepperSteps = steps.map((step, index) => ({
-    label: step.label,
-    state: completedSteps.includes(index)
-      ? 'done'
-      : index === currentStep
-        ? 'partially-done'
-        : 'pending',
-    // Disable steps that are ahead of the current step and not completed
-    disabled: index > currentStep && !completedSteps.includes(index),
-  }));
+  const stepperSteps = steps.map((step, index) => {
+    let state: 'done' | 'partially-done' | 'pending';
+
+    if (index <= completedStep) {
+      state = 'done';
+    } else if (index === currentStep) {
+      state = 'partially-done';
+    } else {
+      state = 'pending';
+    }
+
+    return {
+      label: step.label,
+      state,
+      // Disable steps that are ahead of the completed step
+      disabled: index > completedStep + 1,
+    };
+  });
 
   return (
     <div className="container mx-auto p-4">
@@ -78,7 +84,7 @@ export default function EmifPage() {
           currentStep={currentStep}
           onStep={(step: number) => {
             // Only allow clicking on completed steps or the current step
-            if (completedSteps.includes(step) || step === currentStep) {
+            if (step <= completedStep + 1) {
               setCurrentStep(step);
               setExpandedAccordions([steps[step].id]);
             }
@@ -101,9 +107,7 @@ export default function EmifPage() {
               const stepIndex = steps.findIndex(
                 (step) => step.id === accordionId,
               );
-              return (
-                stepIndex <= currentStep || completedSteps.includes(stepIndex)
-              );
+              return stepIndex <= completedStep + 1;
             });
 
             setExpandedAccordions(allowedAccordions);
@@ -113,7 +117,12 @@ export default function EmifPage() {
         >
           {steps.map((step, index) => (
             <AccordionItem key={step.id} value={step.id}>
-              <AccordionTrigger>{step.label}</AccordionTrigger>
+              <AccordionTrigger>
+                {step.label}
+                {index <= completedStep && (
+                  <span className="ml-2 text-green-500">✓</span>
+                )}
+              </AccordionTrigger>
               <AccordionContent>
                 {/* This is where the actual form content would go */}
                 <div className="py-4">
