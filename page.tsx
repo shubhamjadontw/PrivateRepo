@@ -33,16 +33,27 @@ export default function EmifPage() {
 
   // Handle proceed button click
   const handleProceed = (stepIndex: number) => {
-    // Mark current step as completed
-    if (!completedSteps.includes(stepIndex)) {
-      setCompletedSteps([...completedSteps, stepIndex]);
-    }
+    // If user clicks on an earlier step than current, reset the flow
+    if (stepIndex < currentStep) {
+      // Reset completed steps to only include the current step
+      setCompletedSteps([stepIndex]);
 
-    // Move to next step if available
-    if (stepIndex < steps.length - 1) {
+      // Move to the next step
       const nextStep = stepIndex + 1;
       setCurrentStep(nextStep);
       setExpandedAccordions([steps[nextStep].id]);
+    } else {
+      // Normal flow - Mark current step as completed
+      if (!completedSteps.includes(stepIndex)) {
+        setCompletedSteps([...completedSteps, stepIndex]);
+      }
+
+      // Move to next step if available
+      if (stepIndex < steps.length - 1) {
+        const nextStep = stepIndex + 1;
+        setCurrentStep(nextStep);
+        setExpandedAccordions([steps[nextStep].id]);
+      }
     }
   };
 
@@ -54,6 +65,8 @@ export default function EmifPage() {
       : index === currentStep
         ? 'partially-done'
         : 'pending',
+    // Disable steps that are ahead of the current step and not completed
+    disabled: index > currentStep && !completedSteps.includes(index),
   }));
 
   return (
@@ -82,7 +95,19 @@ export default function EmifPage() {
       <div className="mt-8">
         <Accordion
           value={expandedAccordions}
-          onValueChange={setExpandedAccordions}
+          onValueChange={(value: string[]) => {
+            // Only allow expanding accordions that are completed or the current step
+            const allowedAccordions = value.filter((accordionId: string) => {
+              const stepIndex = steps.findIndex(
+                (step) => step.id === accordionId,
+              );
+              return (
+                stepIndex <= currentStep || completedSteps.includes(stepIndex)
+              );
+            });
+
+            setExpandedAccordions(allowedAccordions);
+          }}
           statusIcon={<CheckIcon />}
           defaultExpanded={[steps[0].id]}
         >
